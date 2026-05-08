@@ -1,0 +1,10 @@
+services:
+  relay:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./relay/client.html:/app/client.html
+      - ./relay/sw.js:/app/sw.js
+    restart: always

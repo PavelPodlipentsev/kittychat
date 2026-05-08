@@ -1,0 +1,813 @@
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="KittyChat">
+<link rel="apple-touch-icon" href="/icon.png">
+<title>🐱 KittyChat</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #fef6f0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+#loginScreen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100vh; background: linear-gradient(135deg, #a8d8ea, #ffc8dd);
+}
+#loginScreen h1 { font-size: 2.5em; color: #fff; margin-bottom: 8px; text-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+#loginScreen p { color: #fff; margin-bottom: 30px; font-size: 1.1em; }
+.login-box { background: #fff; border-radius: 20px; padding: 30px; width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+.login-box input { width: 100%; padding: 12px 16px; margin-bottom: 12px; border: 2px solid #ffc8dd; border-radius: 12px; font-size: 15px; outline: none; }
+.login-box input:focus { border-color: #a8d8ea; }
+.login-box button { width: 100%; padding: 12px; background: linear-gradient(90deg, #a8d8ea, #ffc8dd); border: none; border-radius: 12px; font-size: 16px; color: #fff; font-weight: bold; cursor: pointer; }
+
+#app { display: none; flex: 1; height: 100vh; overflow: hidden; }
+
+#sidebar { width: 280px; background: #fff; border-right: 2px solid #fce4ec; display: flex; flex-direction: column; height: 100vh; flex-shrink: 0; }
+#sidebarHeader { padding: 20px 16px 12px; background: linear-gradient(90deg, #a8d8ea, #ffc8dd); color: #fff; flex-shrink: 0; }
+#sidebarHeader h2 { font-size: 1.4em; }
+#sidebarHeader p { font-size: 0.85em; opacity: 0.9; }
+#roomInput { margin: 12px; padding: 10px 14px; border: 2px solid #fce4ec; border-radius: 12px; font-size: 14px; outline: none; flex-shrink: 0; }
+#roomInput:focus { border-color: #a8d8ea; }
+#roomList { flex: 1; overflow-y: auto; padding: 0 8px; }
+.room-item { display: flex; align-items: center; padding: 12px; border-radius: 14px; cursor: pointer; margin-bottom: 4px; transition: background 0.2s; }
+.room-item:hover { background: #fce4ec; }
+.room-item.active { background: linear-gradient(90deg, #a8d8ea33, #ffc8dd33); border-left: 3px solid #a8d8ea; }
+.room-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #a8d8ea, #ffc8dd); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-right: 12px; flex-shrink: 0; }
+.room-name { font-weight: 600; color: #444; font-size: 15px; }
+.room-preview { font-size: 12px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+#onlineList .user-item { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:14px; color:#555; }
+#usersList { overflow-y:auto; padding:0 8px; max-height:180px; }
+#dmList { overflow-y:auto; padding:0 8px; }
+.user-online { display:flex; align-items:center; padding:8px 12px; border-radius:12px; cursor:pointer; font-size:14px; color:#555; gap:8px; }
+.user-online:hover { background:#fce4ec; }
+.msg-status { font-size:11px; margin-left:4px; color:#aaa; }
+.msg-status.delivered { color:#aaa; }
+.msg-status.read { color:#4fc3f7; }
+#myStatus { padding: 12px 16px; border-top: 2px solid #fce4ec; font-size: 13px; color: #aaa; text-align: center; flex-shrink: 0; }
+
+#chatArea { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
+#emptyChat { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #ccc; }
+#emptyChat .big { font-size: 80px; }
+#emptyChat p { font-size: 16px; margin-top: 12px; }
+
+#chatMain { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#chatHeader { padding: 14px 20px; background: #fff; border-bottom: 2px solid #fce4ec; display: flex; align-items: center; flex-shrink: 0; }
+#chatHeader .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #a8d8ea, #ffc8dd); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-right: 12px; flex-shrink: 0; }
+#chatHeader .info h3 { color: #444; font-size: 16px; }
+#chatHeader .info p { color: #aaa; font-size: 12px; }
+
+#messages { flex: 1; overflow-y: auto; padding: 20px; background: #fef6f0; }
+
+#inputArea { padding: 10px 14px; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: #fff; border-top: 2px solid #fce4ec; display: flex; align-items: center; gap: 8px; flex-shrink: 0; position: sticky; bottom: 0; }
+.icon-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: #fce4ec; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s; }
+.icon-btn:hover { background: #ffc8dd; }
+#messageInput { flex: 1; padding: 10px 16px; border: 2px solid #fce4ec; border-radius: 20px; font-size: 14px; outline: none; background: #fef6f0; min-width: 0; }
+#messageInput:focus { border-color: #a8d8ea; }
+#sendBtn { width: 40px; height: 40px; border-radius: 50%; border: none; background: linear-gradient(135deg, #a8d8ea, #ffc8dd); font-size: 20px; cursor: pointer; flex-shrink: 0; }
+
+.msg-wrap { display: flex; margin-bottom: 12px; align-items: flex-end; }
+.msg-wrap.own { flex-direction: row-reverse; }
+.msg-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #a8d8ea, #ffc8dd); display: flex; align-items: center; justify-content: center; font-size: 15px; margin: 0 8px; flex-shrink: 0; }
+.bubble { max-width: 60%; padding: 10px 14px; border-radius: 18px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.07); font-size: 14px; color: #444; line-height: 1.5; word-break: break-word; }
+.msg-wrap.own .bubble { background: linear-gradient(135deg, #a8d8ea, #ffc8dd); color: #fff; }
+.bubble .sender { font-size: 11px; font-weight: 700; color: #a8d8ea; margin-bottom: 3px; }
+.msg-wrap.own .bubble .sender { display: none; }
+.bubble .time { font-size: 10px; color: #bbb; text-align: right; margin-top: 4px; }
+.msg-wrap.own .bubble .time { color: #fff9; }
+.system-msg { text-align: center; color: #bbb; font-size: 12px; margin: 8px 0; }
+@media (max-width: 768px) {
+  #sidebar { position: fixed; left: 0; top: 0; z-index: 100; transform: translateX(-100%); transition: transform 0.3s; width: 280px; }
+  #sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.15); }
+  #chatArea { width: 100%; }
+  #openSidebar { display: block !important; }
+  #closeSidebar { display: block !important; }
+  #inputArea { padding: 8px; gap: 6px; }
+  .icon-btn { width: 40px; height: 40px; font-size: 19px; }
+  #messageInput { font-size: 16px; }
+  #sendBtn { width: 44px; height: 44px; font-size: 22px; }
+  .login-box { width: 90vw; padding: 20px; }
+  #loginScreen h1 { font-size: 2em; }
+  .bubble { max-width: 80vw; }
+  #messages { padding: 12px; }
+}
+
+.msg-menu { position:absolute; background:#fff; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.15); padding:4px; z-index:50; }
+.msg-menu button { display:block; width:100%; padding:8px 16px; border:none; background:none; cursor:pointer; font-size:14px; text-align:left; border-radius:8px; }
+.msg-menu button:hover { background:#fce4ec; }
+.msg-wrap { position:relative; }
+
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h1>🐱 KittyChat</h1>
+  <p>Мяукай с друзьями!</p>
+  <div class="login-box">
+    <input id="usernameInput" placeholder="🐱 Имя пользователя" />
+    <input id="passwordInput" type="password" placeholder="🔑 Пароль" />
+    <div id="loginError" style="color:#e57373;font-size:13px;margin-bottom:8px;display:none">Неверный логин или пароль</div>
+    <button onclick="login(false)" style="margin-bottom:8px">Войти</button>
+    <button onclick="login(true)" style="background:linear-gradient(90deg,#ffc8dd,#a8d8ea)">Зарегистрироваться</button>
+ </div> 
+</div>
+
+<div id="app" style="display:none; flex-direction:row;">
+  <div id="sidebar">
+    <div id="sidebarHeader" style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <h2>🐱 KittyChat</h2>
+        <p id="myName">...</p>
+      </div>
+      <button id="closeSidebar" onclick="toggleSidebar()" style="display:none;background:none;border:none;color:#fff;font-size:22px;cursor:pointer">✕</button>
+    </div>
+    <input id="roomInput" placeholder="🐾 Название комнаты + Enter" onkeydown="if(event.key==='Enter') joinRoom(this.value)" />
+    <div style="font-size:11px;color:#aaa;padding:8px 16px 4px;font-weight:600">КОМНАТЫ</div>
+    <div id="roomList"></div>
+    <div style="font-size:11px;color:#aaa;padding:8px 16px 4px;font-weight:600;border-top:2px solid #fce4ec;margin-top:4px">ЛИЧНЫЕ СООБЩЕНИЯ</div>
+    <div id="dmList"></div>
+    <div style="font-size:11px;color:#aaa;padding:8px 16px 4px;font-weight:600;border-top:2px solid #fce4ec;margin-top:4px">ПОЛЬЗОВАТЕЛИ</div>
+    <div id="usersList"></div>
+    <div id="onlineSection" style="padding:8px 16px;border-top:2px solid #fce4ec;flex-shrink:0;display:none">
+      <div style="font-size:12px;color:#aaa;margin-bottom:6px;font-weight:600">В КОМНАТЕ</div>
+      <div id="onlineList"></div>
+    </div>
+    <div id="myStatus">😺 онлайн</div>
+  </div>
+
+  <div id="chatArea">
+    <div id="emptyChat">
+      <div class="big">🐱</div>
+      <p>Выбери комнату чтобы начать мяукать!</p>
+    </div>
+    <div id="chatMain" style="display:none;">
+      <div id="chatHeader">
+        <button id="openSidebar" onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:22px;cursor:pointer;margin-right:8px">☰</button>
+        <div class="avatar">🐱</div>
+        <div class="info">
+          <h3 id="chatRoomName">general</h3>
+          <p>комната</p>
+        </div>
+        <button onclick="toggleSearch()" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer">🔍</button>
+      </div>
+      <div id="searchBar" style="display:none;padding:8px 16px;background:#fff;border-bottom:2px solid #fce4ec;display:none">
+        <input id="searchInput" placeholder="Поиск по сообщениям..." style="width:100%;padding:8px 14px;border:2px solid #fce4ec;border-radius:12px;font-size:14px;outline:none" onkeydown="if(event.key==='Enter') doSearch()" />
+      </div>
+      <div id="messages"></div>
+      <div id="inputArea">
+        <button class="icon-btn" title="Файл" onclick="document.getElementById('fileInput').click()">📎</button>
+        <button class="icon-btn" title="Фото" onclick="document.getElementById('imageInput').click()">🖼️</button>
+        <button class="icon-btn" id="voiceBtn" onmousedown="startVoice(event)" onmouseup="stopVoice(event)" ontouchstart="startVoice(event)" ontouchend="stopVoice(event)">🎤</button>
+        <input type="file" id="fileInput" style="display:none" onchange="sendFile(this)">
+        <input type="file" id="imageInput" accept="image/*,video/*" style="display:none" onchange="sendMedia(this)">
+        <input id="messageInput" placeholder="Мяукни что-нибудь... 🐱" onkeydown="if(event.key==='Enter') sendMessage()" />
+        <button class="icon-btn" id="callBtn" onclick="startCall()" title="Звонок">📞</button>
+	<button id="sendBtn" onclick="sendMessage()">🐾</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="callModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:1000;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:24px;padding:32px;text-align:center;min-width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="font-size:60px;margin-bottom:12px">📞</div>
+    <div id="callStatus" style="font-size:18px;font-weight:bold;color:#444;margin-bottom:8px">Звонок...</div>
+    <div id="callRoom" style="font-size:14px;color:#aaa;margin-bottom:24px"></div>
+    <video id="remoteVideo" autoplay playsinline style="width:100%;max-width:320px;border-radius:12px;background:#000;display:none;margin-bottom:12px"></video>
+    <video id="localVideo" autoplay playsinline muted style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #a8d8ea;display:none;margin-bottom:16px"></video>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button id="answerBtn" onclick="answerCall()" style="display:none;padding:12px 24px;background:linear-gradient(90deg,#a8d8ea,#ffc8dd);border:none;border-radius:12px;color:#fff;font-size:16px;cursor:pointer;font-weight:bold">✅ Принять</button>
+      <button onclick="endCall()" style="padding:12px 24px;background:#e57373;border:none;border-radius:12px;color:#fff;font-size:16px;cursor:pointer;font-weight:bold">❌ Завершить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let myUsername, currentRoom, authToken;
+let keyPair, sharedKeys = {};
+let localStream, peerConnection, isCaller = false;
+const iceServers = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ]
+};
+const rooms = {};
+const cats = ['🐱','😺','😸','😹','😻','🐈','🐾'];
+const roomCats = {};
+function randomCat() { return cats[Math.floor(Math.random()*cats.length)]; }
+function time() { return new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}); }
+
+async function login(isRegister) {
+  const username = document.getElementById('usernameInput').value.trim();
+  const password = document.getElementById('passwordInput').value.trim();
+  if (!username || !password) return;
+  const endpoint = isRegister ? '/register' : '/login';
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    if (!res.ok) {
+      document.getElementById('loginError').style.display = 'block';
+      return;
+    }
+    const data = await res.json();
+    authToken = data.token;
+    myUsername = data.username;
+    localStorage.setItem('kc_token', data.token);
+    localStorage.setItem('kc_username', data.username);
+    document.getElementById('loginError').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('myName').textContent = myUsername + ' 🐾';
+    joinRoom('general');
+    loadUsers();
+    await generateKeys();
+    await setupPush();
+  } catch {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+function joinRoom(name) {
+  name = name.trim().toLowerCase();
+  if (!name) return;
+  document.getElementById('roomInput').value = '';
+  if (rooms[name]) { switchRoom(name); return; }
+  connectWS(name);
+}
+
+function connectWS(room) {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const socket = new WebSocket(`${proto}//${location.host}/ws?token=${encodeURIComponent(authToken)}&room=${encodeURIComponent(room)}`);
+  rooms[room] = { ws: socket, messages: [], cat: randomCat() };
+  roomCats[room] = rooms[room].cat;
+
+  socket.onopen = () => {
+    addRoomToSidebar(room);
+    switchRoom(room);
+  };
+
+  socket.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'deleted') {
+      const el = document.querySelector(`[data-id="${msg.id}"]`);
+      if (el) el.remove();
+      return;
+    }
+    if (msg.type === 'edited') {
+      const el = document.querySelector(`[data-id="${msg.id}"]`);
+      if (el) {
+        const bubble = el.querySelector('.bubble div:nth-child(2)');
+        if (bubble) bubble.textContent = msg.content;
+      }
+      return;
+    }
+
+    if (msg.type === 'call-offer') { handleOffer(msg, room); return; }
+    if (msg.type === 'call-answer') { handleAnswer(msg); return; }
+    if (msg.type === 'call-ice') { handleIce(msg); return; }
+    if (msg.type === 'call-end') { endCall(); return; }
+    if (msg.type === 'status') {
+      if (msg.status === 'read') {
+        document.querySelectorAll('.msg-status').forEach(el => {
+          el.textContent = '✓✓';
+          el.className = 'msg-status read';
+        });
+      }
+      return;
+    }
+    if (msg.type === 'users') {
+      if (currentRoom === room) updateOnlineList(msg.users);
+      return;
+    }
+    if (msg.type === 'history') {
+      rooms[room].messages.push(msg);
+      if (currentRoom === room) appendMessage(msg, false, true);
+      return;
+    }
+    if (msg.username === myUsername) return; // не дублируем свои
+    (async () => {
+      let displayContent = msg.content;
+      const displayMsg = { ...msg, content: displayContent };
+      rooms[room].messages.push(displayMsg);
+      if (currentRoom === room) appendMessage(displayMsg, false);
+      updatePreview(room, displayMsg);
+    })
+();
+  };
+
+  socket.onclose = () => {
+    appendSystemMsg('🐾 Соединение закрыто');
+    delete rooms[room];
+    setTimeout(() => {
+      if (currentRoom === room) {
+        appendSystemMsg('🔄 Переподключение...');
+        connectWS(room);
+      }
+    }, 3000);
+  };
+}
+
+function switchRoom(name) {
+  currentRoom = name;
+  document.getElementById('emptyChat').style.display = 'none';
+  document.getElementById('chatMain').style.display = 'flex';
+  document.getElementById('chatMain').style.flexDirection = 'column';
+  document.getElementById('chatRoomName').textContent = '# ' + name;
+  document.getElementById('messages').innerHTML = '';
+  if (window.innerWidth <= 600) document.getElementById('sidebar').classList.remove('open');
+  historyDividerShown = false;
+  if (rooms[name] && rooms[name].ws && rooms[name].ws.readyState === 1) {
+    rooms[name].ws.send(JSON.stringify({type:'read', room: name}));
+  }
+  rooms[name].messages.forEach(m => appendMessage(m, m.username === myUsername));
+  document.querySelectorAll('.room-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('room-' + name);
+  if (el) el.classList.add('active');
+}
+
+function addRoomToSidebar(name) {
+  if (document.getElementById('room-' + name)) return;
+  const list = document.getElementById('roomList');
+  const div = document.createElement('div');
+  div.className = 'room-item';
+  div.id = 'room-' + name;
+  div.innerHTML = `<div class="room-avatar">${roomCats[name]}</div><div><div class="room-name">${isDM(name) ? name : '# ' + name}</div><div class="room-preview" id="preview-${name}">Только что зашли 🐾</div></div>`;
+  div.onclick = () => switchRoom(name);
+  list.appendChild(div);
+}
+
+function updatePreview(room, msg) {
+  const el = document.getElementById('preview-' + room);
+  if (el) el.textContent = msg.username + ': ' + (msg.content || '📎 медиа');
+}
+function updateOnlineList(users) {
+  const section = document.getElementById('onlineSection');
+  const list = document.getElementById('onlineList');
+  section.style.display = users.length ? 'block' : 'none';
+  list.innerHTML = users.map(u =>
+    `<div class="user-item">🟢 ${escHtml(u)}${u === myUsername ? ' (я)' : ''}</div>`
+  ).join('');
+}
+async function loadUsers() {
+  try {
+    const res = await fetch(`/users?token=${encodeURIComponent(authToken)}`);
+    const data = await res.json();
+    const list = document.getElementById('usersList');
+    list.innerHTML = '';
+    data.users.forEach(u => {
+      if (u === myUsername) return;
+      const div = document.createElement('div');
+      div.className = 'user-online';
+      div.innerHTML = `🐱 ${escHtml(u)}`;
+      div.onclick = () => openDM(u);
+      list.appendChild(div);
+    });
+  } catch(e) { console.error(e); }
+}
+
+async function openDM(target) {
+  try {
+    const res = await fetch(`/dm?token=${encodeURIComponent(authToken)}&target=${encodeURIComponent(target)}`);
+    const data = await res.json();
+    const room = data.room;
+    if (rooms[room]) { switchRoom(room); return; }
+    roomCats[room] = randomCat();
+    connectWS(room);
+    addDMToSidebar(room, target);
+    // Сохраняем открытые DM
+    const savedDMs = JSON.parse(localStorage.getItem('kc_dms') || '[]');
+    if (!savedDMs.includes(target)) {
+      savedDMs.push(target);
+      localStorage.setItem('kc_dms', JSON.stringify(savedDMs));
+    }
+  } catch(e) { console.error(e); }
+}
+
+function addDMToSidebar(room, target) {
+  if (document.getElementById('room-' + room)) return;
+  const list = document.getElementById('dmList');
+  const div = document.createElement('div');
+  div.className = 'room-item';
+  div.id = 'room-' + room;
+  div.innerHTML = `<div class="room-avatar">💬</div><div><div class="room-name">${escHtml(target)}</div><div class="room-preview" id="preview-${room}">Личные сообщения</div></div>`;
+  div.onclick = () => switchRoom(room);
+  list.appendChild(div);
+}
+
+function isDM(room) { return room.startsWith('dm_'); }
+
+let historyDividerShown = false;
+function appendMessage(msg, isOwn, isHistory = false) {
+  const msgs = document.getElementById('messages');
+  if (isHistory && !historyDividerShown) {
+    historyDividerShown = true;
+    const div = document.createElement('div');
+    div.className = 'system-msg';
+    div.textContent = '📜 История сообщений';
+    msgs.appendChild(div);
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap' + (isOwn ? ' own' : '');
+  if (msg.id) wrap.dataset.id = msg.id;
+  let content = '';
+  if (msg.image) content = `<img src="${msg.image}" style="max-width:220px;border-radius:10px;display:block;margin-top:4px" onclick="window.open(this.src)">`;
+  else if (msg.audio) content = `<audio controls src="${msg.audio}" style="max-width:220px"></audio>`;
+  else if (msg.file) content = `<a href="${msg.file}" download="${msg.filename}" style="color:inherit;text-decoration:none">📎 ${msg.filename}</a>`;
+  else content = escHtml(msg.content || '');
+  let statusHtml = '';
+  if (isOwn) {
+    const s = msg.status || 'sent';
+    const icon = s === 'sent' ? '✓' : '✓✓';
+    statusHtml = `<span class="msg-status ${s}">${icon}</span>`;
+  }
+  wrap.innerHTML = `<div class="msg-avatar">${randomCat()}</div><div class="bubble"><div class="sender">${msg.username} 🐾</div><div>${content}</div><div class="time">${time()}${statusHtml}</div></div>`;
+  msgs.appendChild(wrap);
+  if (isOwn && msg.id) {
+    wrap.onclick = (e) => showMsgMenu(e, msg.id);
+  }
+  msgs.scrollTop = msgs.scrollHeight;
+} 
+
+function appendSystemMsg(text) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'system-msg';
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function escHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+function toggleSearch() {
+  const bar = document.getElementById('searchBar');
+  bar.style.display = bar.style.display === 'none' ? 'block' : 'none';
+  if (bar.style.display === 'block') document.getElementById('searchInput').focus();
+}
+
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q || !currentRoom) return;
+  const res = await fetch(`/search?token=${encodeURIComponent(authToken)}&q=${encodeURIComponent(q)}&room=${encodeURIComponent(currentRoom)}`);
+  const data = await res.json();
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '<div class="system-msg">🔍 Результаты поиска</div>';
+  data.messages.forEach(m => appendMessage(m, m.username === myUsername));
+}
+
+function showMsgMenu(e, id) {
+  e.stopPropagation();
+  document.querySelectorAll('.msg-menu').forEach(m => m.remove());
+  const menu = document.createElement('div');
+  menu.className = 'msg-menu';
+  menu.style.right = '0';
+  menu.style.top = '0';
+  menu.innerHTML = `
+    <button onclick="deleteMsg(${id})">🗑️ Удалить</button>
+    <button onclick="editMsg(${id}, this)">✏️ Редактировать</button>
+  `;
+  const wrap = document.querySelector(`[data-id="${id}"]`);
+  if (wrap) wrap.appendChild(menu);
+  document.addEventListener('click', () => menu.remove(), { once: true });
+}
+
+async function deleteMsg(id) {
+  await fetch(`/message/delete?token=${encodeURIComponent(authToken)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, room: currentRoom })
+  });
+}
+
+async function editMsg(id) {
+  const wrap = document.querySelector(`[data-id="${id}"]`);
+  if (!wrap) return;
+  const bubble = wrap.querySelector('.bubble div:nth-child(2)');
+  const oldText = bubble ? bubble.textContent : '';
+  const newText = prompt('Редактировать сообщение:', oldText);
+  if (!newText || newText === oldText) return;
+  await fetch(`/message/edit?token=${encodeURIComponent(authToken)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, room: currentRoom, content: newText })
+  });
+}
+
+async function generateKeys() {
+  const saved = localStorage.getItem('kc_privateKey');
+  if (saved) {
+    try {
+      const jwk = JSON.parse(saved);
+      const privateKey = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+      const publicKey = await crypto.subtle.importKey('jwk', JSON.parse(localStorage.getItem('kc_publicKey')), { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+      keyPair = { privateKey, publicKey };
+      return;
+    } catch(e) {
+      localStorage.removeItem('kc_privateKey');
+      localStorage.removeItem('kc_publicKey');
+    }
+  }
+  keyPair = await crypto.subtle.generateKey(
+    { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']
+  );
+  const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+  const pubJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+  localStorage.setItem('kc_privateKey', JSON.stringify(privJwk));
+  localStorage.setItem('kc_publicKey', JSON.stringify(pubJwk));
+  const exported = await crypto.subtle.exportKey('spki', keyPair.publicKey);
+  const b64 = btoa(String.fromCharCode(...new Uint8Array(exported)));
+  await fetch(`/keys?token=${encodeURIComponent(authToken)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ public_key: b64 })
+  });
+}
+async function setupPush() {
+  try {
+    if (!('serviceWorker' in navigator)) { console.log('No SW support'); return; }
+    if (!('PushManager' in window)) { console.log('No Push support'); return; }
+    const permission = await Notification.requestPermission();
+    console.log('Push permission:', permission);
+    if (permission !== 'granted') return;
+    const res = await fetch(`/vapid-key`);
+    const data = await res.json();
+    const vapidKey = data.public_key;
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    console.log('SW ready');
+    const raw = atob(vapidKey.replace(/-/g,'+').replace(/_/g,'/'));
+    const key = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) key[i] = raw.charCodeAt(i);
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: key
+    });
+    console.log('Push subscribed:', sub.endpoint);
+    const j = sub.toJSON();
+    const saveRes = await fetch(`/subscribe?token=${encodeURIComponent(authToken)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endpoint: j.endpoint,
+        p256dh: j.keys.p256dh,
+        auth: j.keys.auth
+      })
+    });
+    console.log('Push save status:', saveRes.status);
+  } catch(e) { console.error('Push setup error:', e); }
+}
+
+async function getSharedKey(username) {
+  if (sharedKeys[username]) return sharedKeys[username];
+  const res = await fetch(`/keys/get?token=${encodeURIComponent(authToken)}&username=${encodeURIComponent(username)}`);
+  const data = await res.json();
+  const raw = Uint8Array.from(atob(data.public_key), c => c.charCodeAt(0));
+  const pubKey = await crypto.subtle.importKey('spki', raw, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const shared = await crypto.subtle.deriveKey(
+    { name: 'ECDH', public: pubKey },
+    keyPair.privateKey,
+    { name: 'AES-GCM', length: 256 },
+    false, ['encrypt', 'decrypt']
+  );
+  sharedKeys[username] = shared;
+  return shared;
+}
+
+async function encryptMsg(text, username) {
+  const key = await getSharedKey(username);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoded = new TextEncoder().encode(text);
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+  return JSON.stringify({
+    iv: btoa(String.fromCharCode(...iv)),
+    data: btoa(String.fromCharCode(...new Uint8Array(cipher)))
+  });
+}
+
+async function decryptMsg(payload, username) {
+  try {
+    const key = await getSharedKey(username);
+    const { iv, data } = JSON.parse(payload);
+    const ivArr = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
+    const dataArr = Uint8Array.from(atob(data), c => c.charCodeAt(0));
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivArr }, key, dataArr);
+    return new TextDecoder().decode(plain);
+  } catch { return '🔒 [не удалось расшифровать]'; }
+}
+
+function getDMPartner(room) {
+  const parts = room.replace('dm_', '').split('_');
+  return parts.find(u => u !== myUsername) || parts[0];
+}
+
+async function startCall() {
+  if (!currentRoom) return;
+  isCaller = true;
+  document.getElementById('answerBtn').style.display = 'none';
+  showCallModal('Исходящий звонок...', currentRoom);
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    document.getElementById('localVideo').srcObject = localStream;
+    document.getElementById('localVideo').style.display = 'block';
+    peerConnection = createPC();
+    localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    sendWS({ type: 'call-offer', sdp: offer.sdp });
+  } catch(e) { alert('Нет доступа к микрофону'); endCall(); }
+}
+
+async function handleOffer(msg, room) {
+  if (msg.username === myUsername) return;
+  isCaller = false;
+  showCallModal('Входящий звонок 📞', room, true);
+  window._pendingOffer = msg;
+}
+
+async function answerCall() {
+  document.getElementById('answerBtn').style.display = 'none';
+  document.getElementById('callStatus').textContent = 'Соединение...';
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    document.getElementById('localVideo').srcObject = localStream;
+    document.getElementById('localVideo').style.display = 'block';
+    peerConnection = createPC();
+    localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
+    await peerConnection.setRemoteDescription({ type: 'offer', sdp: window._pendingOffer.sdp });
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    sendWS({ type: 'call-answer', sdp: answer.sdp });
+  } catch(e) { endCall(); }
+}
+
+async function handleAnswer(msg) {
+  if (!peerConnection) return;
+  await peerConnection.setRemoteDescription({ type: 'answer', sdp: msg.sdp });
+  document.getElementById('callStatus').textContent = 'Звонок активен 🎤';
+}
+
+async function handleIce(msg) {
+  if (!peerConnection || !msg.candidate) return;
+  try { await peerConnection.addIceCandidate(JSON.parse(msg.candidate)); } catch(e) {}
+}
+
+function createPC() {
+  const pc = new RTCPeerConnection(iceServers);
+  pc.onicecandidate = e => {
+    if (e.candidate) sendWS({ type: 'call-ice', candidate: JSON.stringify(e.candidate) });
+  };
+  pc.ontrack = e => {
+    document.getElementById('remoteVideo').srcObject = e.streams[0];
+    document.getElementById('remoteVideo').style.display = 'block';
+    document.getElementById('callStatus').textContent = 'Звонок активен 🎤';
+  };
+  return pc;
+}
+
+function endCall() {
+  if (peerConnection) { peerConnection.close(); peerConnection = null; }
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  sendWS({ type: 'call-end' });
+  document.getElementById('callModal').style.display = 'none';
+  document.getElementById('remoteVideo').srcObject = null;
+  document.getElementById('localVideo').srcObject = null;
+}
+
+function showCallModal(status, room, incoming = false) {
+  const modal = document.getElementById('callModal');
+  modal.style.display = 'flex';
+  document.getElementById('callStatus').textContent = status;
+  document.getElementById('callRoom').textContent = '# ' + room;
+  document.getElementById('answerBtn').style.display = incoming ? 'inline-block' : 'none';
+}
+
+function sendWS(msg) {
+  if (currentRoom && rooms[currentRoom] && rooms[currentRoom].ws) {
+    const ws = rooms[currentRoom].ws;
+    if (ws.readyState === 1) {
+      ws.send(JSON.stringify(msg));
+    } else if (ws.readyState === 3) {
+      connectWS(currentRoom);
+      setTimeout(() => sendWS(msg), 3000);
+    }
+  }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('messageInput');
+  const text = input.value.trim();
+  if (!text || !currentRoom) return;
+  let content = text;
+  // E2E только для секретных чатов (будет добавлено позже)
+  const msg = { type: 'message', content };
+  rooms[currentRoom].ws.send(JSON.stringify(msg));
+  appendMessage({ username: myUsername, content: text }, true);
+  input.value = '';
+}
+
+function sendMedia(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const isVideo = file.type.startsWith('video/');
+    const msg = { type: 'message', image: e.target.result, content: '' };
+    rooms[currentRoom].ws.send(JSON.stringify(msg));
+    appendMessage({ username: myUsername, image: e.target.result }, true);
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function sendFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const msg = { type: 'message', file: e.target.result, filename: file.name, content: '' };
+    rooms[currentRoom].ws.send(JSON.stringify(msg));
+    appendMessage({ username: myUsername, file: e.target.result, filename: file.name }, true);
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+let mediaRecorder, audioChunks = [];
+let isRecording = false;
+
+function startVoice(e) {
+  if (e) e.preventDefault();
+  if (isRecording) return;
+  isRecording = true;
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    const mimeType = MediaRecorder.isTypeSupported('audio/mp4')
+      ? 'audio/mp4'
+      : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : '';
+    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: mimeType || 'audio/webm' });
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (!currentRoom || !rooms[currentRoom]) return;
+        const msg = { type: 'message', audio: e.target.result, content: '' };
+        rooms[currentRoom].ws.send(JSON.stringify(msg));
+        appendMessage({ username: myUsername, audio: e.target.result }, true);
+      };
+      reader.readAsDataURL(blob);
+      stream.getTracks().forEach(t => t.stop());
+      isRecording = false;
+      document.getElementById('voiceBtn').textContent = '🎤';
+    };
+    mediaRecorder.start(100);
+    document.getElementById('voiceBtn').textContent = '🔴';
+  }).catch(() => {
+    alert('Нет доступа к микрофону');
+    isRecording = false;
+  });
+}
+
+function stopVoice(e) {
+  if (e) e.preventDefault();
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+}
+window.addEventListener('load', () => {
+  const token = localStorage.getItem('kc_token');
+  const username = localStorage.getItem('kc_username');
+  if (token && username) {
+    authToken = token;
+    myUsername = username;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('myName').textContent = myUsername + ' 🐾';
+    joinRoom('general');
+    loadUsers();
+    generateKeys();
+    setupPush();
+    // Восстанавливаем открытые DM
+    setTimeout(() => {
+      const savedDMs = JSON.parse(localStorage.getItem('kc_dms') || '[]');
+      savedDMs.forEach(target => openDM(target));
+    }, 200);
+  }
+});
+
+</script>
+</body>
+</html>

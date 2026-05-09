@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"strings"
 	"log"
 	"net/http"
 	"sync"
@@ -37,12 +38,15 @@ func initDB() {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		username TEXT UNIQUE,
+		email TEXT UNIQUE,
 		password TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Миграция — добавляем email если не существует
+	db.Exec(`ALTER TABLE users ADD COLUMN email TEXT UNIQUE`)
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS push_subscriptions (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		username TEXT,
@@ -111,6 +115,15 @@ func validateToken(tokenStr string) (string, bool) {
 	return username, ok
 }
 
+func isValidEmail(email string) bool {
+	at := strings.Index(email, "@")
+	if at < 1 {
+		return false
+	}
+	dot := strings.LastIndex(email[at:], ".")
+	return dot > 1 && dot < len(email[at:])-1
+}
+
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
@@ -120,12 +133,18 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var req struct {
 		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
-	if req.Username == "" || req.Password == "" {
+	if req.Username == "" || req.Password == "" || req.Email == "" {
 		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Введи имя и пароль"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "Введи имя, email и пароль"})
+		return
+	}
+	if !isValidEmail(req.Email) {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Неверный формат email"})
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
@@ -133,10 +152,10 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
-	_, err = db.Exec(`INSERT INTO users (username, password) VALUES (?, ?)`, req.Username, string(hash))
+	_, err = db.Exec(`INSERT INTO users (username, email, password) VALUES (?, ?, ?)`, req.Username, req.Email, string(hash))
 	if err != nil {
 		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Имя уже занято"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "Имя или email уже заняты"})
 		return
 	}
 	token, _ := generateToken(req.Username)
@@ -151,24 +170,24 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
-	var hash string
-	err := db.QueryRow(`SELECT password FROM users WHERE username = ?`, req.Username).Scan(&hash)
+	var hash, username string
+	err := db.QueryRow(`SELECT password, username FROM users WHERE email = ?`, req.Email).Scan(&hash, &username)
 	if err != nil {
 		w.WriteHeader(401)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Неверное имя или пароль"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "Неверный email или пароль"})
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)) != nil {
 		w.WriteHeader(401)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Неверное имя или пароль"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "Неверный email или пароль"})
 		return
 	}
-	token, _ := generateToken(req.Username)
-	json.NewEncoder(w).Encode(map[string]string{"token": token, "username": req.Username})
+	token, _ := generateToken(username)
+	json.NewEncoder(w).Encode(map[string]string{"token": token, "username": username})
 }
 
 func saveMessage(msg Message) int64 {

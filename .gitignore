@@ -1,0 +1,17 @@
+*.db
+*.log
+*.zip
+*.deb
+.cache/
+.npm/
+.local/
+.config/
+.bash_history
+.bash_logout
+.bashrc
+.gitconfig
+.motd_shown
+.profile
+.ssh/
+data/
+relay?main.go

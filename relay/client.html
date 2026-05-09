@@ -107,8 +107,9 @@ body { font-family: 'Segoe UI', sans-serif; background: #fef6f0; height: 100vh; 
   <h1>🐱 KittyChat</h1>
   <p>Мяукай с друзьями!</p>
   <div class="login-box">
-    <input id="usernameInput" placeholder="🐱 Имя пользователя" />
-    <input id="passwordInput" type="password" placeholder="🔑 Пароль" />
+      <input id="usernameInput" placeholder="🐱 Имя пользователя" />
+      <input id="emailInput" type="email" placeholder="📧 Email" />
+      <input id="passwordInput" type="password" placeholder="🔑 Пароль" />
     <div id="loginError" style="color:#e57373;font-size:13px;margin-bottom:8px;display:none">Неверный логин или пароль</div>
     <button onclick="login(false)" style="margin-bottom:8px">Войти</button>
     <button onclick="login(true)" style="background:linear-gradient(90deg,#ffc8dd,#a8d8ea)">Зарегистрироваться</button>
@@ -202,15 +203,16 @@ function randomCat() { return cats[Math.floor(Math.random()*cats.length)]; }
 function time() { return new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}); }
 
 async function login(isRegister) {
-  const username = document.getElementById('usernameInput').value.trim();
+const username = document.getElementById('usernameInput').value.trim();
+  const email = document.getElementById('emailInput').value.trim();
   const password = document.getElementById('passwordInput').value.trim();
-  if (!username || !password) return;
+  if (!username || !email || !password) return;
   const endpoint = isRegister ? '/register' : '/login';
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify(isRegister ? { username, email, password } : { email, password })
     });
     if (!res.ok) {
       document.getElementById('loginError').style.display = 'block';

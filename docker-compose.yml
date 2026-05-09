@@ -1,10 +1,15 @@
 services:
+  coturn:
+    image: instrumentisto/coturn
+    network_mode: host
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    restart: always
   relay:
     build: .
     ports:
       - "8080:8080"
     volumes:
       - ./data:/app/data
-      - ./relay/client.html:/app/client.html
-      - ./relay/sw.js:/app/sw.js
     restart: always

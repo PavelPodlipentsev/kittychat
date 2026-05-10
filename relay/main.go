@@ -768,6 +768,77 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"users": users})
 }
 
+func chatsHandler(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	username, valid := validateToken(token)
+	if !valid {
+		w.WriteHeader(401)
+		return
+	}
+	rows, err := db.Query(`
+		SELECT room, MAX(content), MAX(created_at) 
+		FROM messages 
+		WHERE room LIKE 'dm_%' AND (
+			room LIKE 'dm_' || ? || '_%' OR 
+			room LIKE 'dm_%_' || ?
+		)
+		GROUP BY room
+		ORDER BY MAX(created_at) DESC
+	`, username, username)
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+	defer rows.Close()
+
+	type Chat struct {
+		Room        string `json:"room"`
+		Target      string `json:"target"`
+		LastMessage string `json:"last_message"`
+		LastTime    string `json:"last_time"`
+	}
+
+	var chats []Chat
+	for rows.Next() {
+		var room, content, lastTime string
+		rows.Scan(&room, &content, &lastTime)
+		// Извлекаем имя собеседника из dm_A_B
+		parts := room[3:] // убираем "dm_"
+		target := ""
+		// Ищем первое вхождение имени пользователя
+		if len(parts) > len(username) && parts[:len(username)] == username && parts[len(username)] == '_' {
+			target = parts[len(username)+1:]
+		} else if len(parts) > len(username) && parts[len(parts)-len(username):] == username {
+			target = parts[:len(parts)-len(username)-1]
+		} else {
+			// Разбиваем по первому _ после которого не наш username
+			for i, c := range parts {
+				if c == '_' {
+					a := parts[:i]
+					b := parts[i+1:]
+					if a == username {
+						target = b
+					} else {
+						target = a
+					}
+					break
+				}
+			}
+		}
+		chats = append(chats, Chat{
+			Room:        room,
+			Target:      target,
+			LastMessage: content,
+			LastTime:    lastTime,
+		})
+	}
+	if chats == nil {
+		chats = []Chat{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"chats": chats})
+}
+
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -794,6 +865,7 @@ func main() {
 	http.HandleFunc("/keys", corsMiddleware(saveKeyHandler))
 	http.HandleFunc("/keys/get", corsMiddleware(getKeyHandler))
 	http.HandleFunc("/dm", corsMiddleware(dmHandler))
+	http.HandleFunc("/chats", corsMiddleware(chatsHandler))
 	http.HandleFunc("/users", corsMiddleware(usersHandler))
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/icon.png", func(w http.ResponseWriter, r *http.Request) {

@@ -768,20 +768,33 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"users": users})
 }
 
+func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(200)
+			return
+		}
+		next(w, r)
+	}
+}
+
 func main() {
 	initDB()
 	go hub.run()
-	http.HandleFunc("/register", registerHandler)
-	http.HandleFunc("/login", loginHandler)
-	http.HandleFunc("/vapid-key", vapidKeyHandler)
-	http.HandleFunc("/subscribe", subscribeHandler)
-	http.HandleFunc("/search", searchHandler)
-	http.HandleFunc("/message/delete", deleteMessageHandler)
-	http.HandleFunc("/message/edit", editMessageHandler)
-	http.HandleFunc("/keys", saveKeyHandler)
-	http.HandleFunc("/keys/get", getKeyHandler)
-	http.HandleFunc("/dm", dmHandler)
-	http.HandleFunc("/users", usersHandler)
+	http.HandleFunc("/register", corsMiddleware(registerHandler))
+	http.HandleFunc("/login", corsMiddleware(loginHandler))
+	http.HandleFunc("/vapid-key", corsMiddleware(vapidKeyHandler))
+	http.HandleFunc("/subscribe", corsMiddleware(subscribeHandler))
+	http.HandleFunc("/search", corsMiddleware(searchHandler))
+	http.HandleFunc("/message/delete", corsMiddleware(deleteMessageHandler))
+	http.HandleFunc("/message/edit", corsMiddleware(editMessageHandler))
+	http.HandleFunc("/keys", corsMiddleware(saveKeyHandler))
+	http.HandleFunc("/keys/get", corsMiddleware(getKeyHandler))
+	http.HandleFunc("/dm", corsMiddleware(dmHandler))
+	http.HandleFunc("/users", corsMiddleware(usersHandler))
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/icon.png", func(w http.ResponseWriter, r *http.Request) {
 	    w.Header().Set("Content-Type", "image/png")
